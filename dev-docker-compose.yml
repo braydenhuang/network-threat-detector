@@ -1,0 +1,40 @@
+# This is a docker-compose file for DEVELOPMENT only!
+
+services:
+  ui:
+    build:
+      context: ./ui
+      dockerfile: DevDockerfile
+    ports:
+      - "3000:3000" # The U.I is directly accessible via this port in dev mode
+    volumes:
+      - ./ui:/app
+    command: npm run dev -- --host
+    depends_on:
+      - caddy
+  api:
+    build:
+      context: ./api
+      dockerfile: ./DevDockerfile
+    ports:
+      - "5000:5000" # The API is directly accessible via this port in dev mode
+    volumes:
+      - ./api:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+      - caddy
+  redis:
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    ports:
+      - "6379:6379"
+  caddy:
+    build:
+      context: ./caddy
+      dockerfile: DevDockerfile
+    ports:
+      - "80:80" # Connect to the application on port 80 to avoid CORS errors
