@@ -16,7 +16,5 @@ COPY . .
 # Set Flask entrypoint
 ENV FLASK_APP=main.py
 
-EXPOSE 5000
-
 # Use flask's reloader in debug mode
 CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0", "--port=5000"]

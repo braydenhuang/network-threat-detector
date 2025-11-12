@@ -6,7 +6,7 @@ services:
       context: ./ui
       dockerfile: DevDockerfile
     ports:
-      - "3000:3000" # The U.I is directly accessible via this port in dev mode
+      - "3000:3000" # The U.I is directly accessible via this port in development
     volumes:
       - ./ui:/app
     command: npm run dev -- --host
@@ -17,14 +17,20 @@ services:
       context: ./api
       dockerfile: ./DevDockerfile
     ports:
-      - "5000:5000" # The API is directly accessible via this port in dev mode
+      - "5000:5000" # The API is directly accessible via this port in development
     volumes:
       - ./api:/app
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - AWS_ACCESS_KEY_ID=development # We're connecting to a local MinIO instance that substitutes for real S3
+      - AWS_SECRET_ACCESS_KEY=12345678 # For development purposes only
+      - AWS_DEFAULT_REGION=us-east-1
+      - S3_BUCKET=network-threat-detector
+      - S3_ENDPOINT_URL=http://minio:9000
     depends_on:
       - redis
+      - minio
       - caddy
   redis:
     build:
@@ -32,6 +38,18 @@ services:
       dockerfile: Dockerfile
     ports:
       - "6379:6379"
+  minio:
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
+    ports:
+      - "9001:9001" # The MinIO Web Console is directly accessible via this port in development
+    command: server /data --console-address ":9001"
+    environment: 
+      - MINIO_ROOT_USER=development # For development purposes only
+      - MINIO_ROOT_PASSWORD=12345678
+    volumes:
+      - ./minio/data:/data
   caddy:
     build:
       context: ./caddy

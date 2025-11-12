@@ -7,8 +7,15 @@
 
 export interface Health {
   redis: Service;
+  s3: Service;
 }
 export interface Service {
   working: boolean;
+  message: string | null;
+}
+export interface UploadResponse {
+  filename: string;
+  success: boolean;
+  filesize: number;
   message: string | null;
 }

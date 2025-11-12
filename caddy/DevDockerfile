@@ -14,5 +14,3 @@ RUN mkdir -p /etc/caddy && cat > /etc/caddy/Caddyfile <<'CADDYFILE'
 }
 CADDYFILE
 
-EXPOSE 80
-
