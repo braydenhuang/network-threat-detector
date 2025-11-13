@@ -208,3 +208,5 @@ __marimo__/
 
 # MinIO
 .minio.sys/
+xl.meta
+part.1

@@ -81,17 +81,13 @@ export async function* uploadFileToAPIWithProgress<V>(
   };
 
   xhr.onload = () => {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        const result = JSON.parse(xhr.responseText) as V;
-        // ensure final 100 then the parsed result
-        push(100);
-        push(result);
-      } catch {
-        error = new Error("Invalid JSON response");
-      }
-    } else {
-      error = new Error(`API file upload failed: ${xhr.status} ${xhr.statusText}`);
+    try {
+      const result = JSON.parse(xhr.responseText) as V;
+      // ensure final 100 then the parsed result
+      push(100);
+      push(result);
+    } catch {
+      error = new Error("Invalid JSON response");
     }
     done = true;
     wake();

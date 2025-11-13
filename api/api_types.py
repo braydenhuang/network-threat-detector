@@ -26,19 +26,40 @@ class UploadResponse(BaseModel):
     filesize: int
     message: Optional[str]
     
-    def report_success(self, file: FileStorage):
+    job_id: Optional[str]
+    
+    def report_success(self, file: FileStorage, file_size: int = 0, job_id: Optional[str] = None):
         self.filename = file.filename
         self.success = True
         
-        file.seek(0, SEEK_END)
-        self.filesize = file.tell()
+        self.filesize = file_size # Getting file size without reading the whole file into memory is tricky
         
         self.message = "File uploaded successfully!"
         
-    def new(filename="", success=False, filesize=0, message=None):
+        self.job_id = job_id
+        
+    def new(filename="", success=False, filesize=0, message=None, job_id=None):
         return UploadResponse(
             filename=filename,
             success=success,
             filesize=filesize,
-            message=message
+            message=message,
+            job_id=job_id
         )
+        
+class JobResult(BaseModel):
+    success: bool
+    message: Optional[str]
+    
+class HealthCheckResult(JobResult):
+    health: Health
+    
+    def new(health: Health, success=False, message: Optional[str] = None):
+        return HealthCheckResult(success=success, message=message, health=health)
+    
+class CICFlowMeterResult(JobResult):
+    ml_job_id: Optional[str]
+    flow_s3_key: Optional[str]
+    
+    def new(success: bool = False, message: Optional[str] = None, ml_job_id: Optional[str] = None, flow_s3_key: Optional[str] = None):
+        return CICFlowMeterResult(success=success, message=message, ml_job_id=ml_job_id, flow_s3_key=flow_s3_key)
