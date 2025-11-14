@@ -9,13 +9,12 @@ services:
       - "3000:3000" # The U.I is directly accessible via this port in development
     volumes:
       - ./ui:/app
-    command: npm run dev -- --host
     depends_on:
       - caddy
   api:
     build:
       context: ./api
-      dockerfile: ./API_DevDockerfile
+      dockerfile: ./docker/API_DevDockerfile
     ports:
       - "5000:5000" # The API is directly accessible via this port in development
     volumes:
@@ -35,7 +34,7 @@ services:
   cicflowmeter_worker:
     build:
       context: ./api
-      dockerfile: ./CICFlowMeter_Dockerfile
+      dockerfile: ./docker/CICFlowMeter_Dockerfile
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -52,7 +51,7 @@ services:
       context: ./redis
       dockerfile: Dockerfile
     ports:
-      - "6379:6379"
+      - "6379:6379" # The Redis CLI is directly accessible via this port in development
   minio:
     build:
       context: ./minio
@@ -68,6 +67,6 @@ services:
   caddy:
     build:
       context: ./caddy
-      dockerfile: DevDockerfile
+      dockerfile: Dockerfile
     ports:
       - "80:80" # Connect to the application on port 80 to avoid CORS errors

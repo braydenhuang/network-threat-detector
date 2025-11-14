@@ -4,12 +4,12 @@ FROM ubuntu:25.10
 RUN apt update -y && apt upgrade -y
 RUN apt install -y gradle maven git libpcap-dev
 
-RUN git clone https://github.com/CanadianInstituteForCybersecurity/CICFlowMeter /tool
-RUN cd /tool/jnetpcap/linux/jnetpcap-1.4.r1425 && \
+RUN git clone https://github.com/CanadianInstituteForCybersecurity/CICFlowMeter /worker
+RUN cd /worker/jnetpcap/linux/jnetpcap-1.4.r1425 && \
     mvn install:install-file \
         -Dfile=jnetpcap.jar -DgroupId=org.jnetpcap -DartifactId=jnetpcap \
         -Dversion=1.4.1 -Dpackaging=jar
-WORKDIR /tool
+WORKDIR /worker
 RUN gradle --no-daemon build
 
 # Build CICFlowMeter tool with custom gradle task
@@ -28,16 +28,8 @@ task runcmd(type: JavaExec){
 GRADLETASK
 RUN cat /gradle-task >>build.gradle && rm /gradle-task
 
-# Copy the CICFlowMeter launcher script to the root directory
-RUN cat > cicflowmeter.sh <<'LAUNCHER'
-gradle --no-daemon -Pcmdargs=$1:$2 runcmd
-LAUNCHER
-RUN chmod 500 cicflowmeter.sh
-
 # Install Python Dependencies
 RUN apt install -y python3 python3-pip
-
-WORKDIR /worker
 
 # Install Python libraries
 COPY requirements.txt ./

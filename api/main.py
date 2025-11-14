@@ -5,6 +5,7 @@ from utils import *
 from run_cicflowmeter import run_cicflowmeter
 
 from flask import Flask, request
+from typing import cast
 from werkzeug.datastructures import FileStorage
 import uuid
 
@@ -49,14 +50,45 @@ def upload():
     S3.upload_fileobj(file, S3_BUCKET, s3_key)
 
     # Enqueue the pcap processing job with reference to the uploaded .pcap file in S3
-    cicflowmeter_job = PCAP_QUEUE.enqueue(run_cicflowmeter, s3_key)
+    new_assignment = Assignment.new()
+    enqueue_job(
+                REDIS, 
+                PCAP_QUEUE, 
+                Stage.new_cicflowmeter_stage(),
+                new_assignment, 
+                run_cicflowmeter, 
+                s3_key,
+                new_assignment.id)
     
     # Get the size of the uploaded file
     file_size = S3.head_object(Bucket=S3_BUCKET, Key=s3_key)["ContentLength"]
     
     # Send our response
-    response.report_success(file, file_size, job_id=cicflowmeter_job.id)
+    response.report_success(file, file_size, assignment_id=new_assignment.id)
     return response.model_dump_json(), 202
+
+@app.route("/assignment/<assignment_id>", methods=["GET"])
+def get_assignment_by_id(assignment_id: str):
+    assignment = get_assignment(REDIS, assignment_id)
+    if assignment is None:
+        return None, 404
+    
+    return assignment.model_dump_json()
+
+@app.route("/job/<job_id>", methods=["GET"])
+def get_job_by_id(job_id: str):
+    job = get_job(REDIS, job_id)
+    if job is None:
+        return None, 404
+    
+    return JobResponse(
+        id = job.id,
+        status = job.get_status(),
+        queue = job.origin,
+        enqeued_at = str(round(job.enqueued_at.timestamp() * 1000)) if job.enqueued_at else None, # Get time in milliseconds
+        ended_at = str(round(job.ended_at.timestamp() * 1000)) if job.ended_at else None,
+        result = JobResult.model_validate_json(job.result) if job.is_finished else None
+    ).model_dump_json()
 
 if __name__ == '__main__':
     app.run()

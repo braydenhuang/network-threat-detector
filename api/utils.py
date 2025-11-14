@@ -10,7 +10,7 @@ def healthcheck() -> Health:
     health = Health(redis=Service.new(), s3=Service.new())
 
     # Check Redis connectivity
-    r = redis.Redis(host=REDIS_HOSTNAME, port=REDIS_PORT, socket_connect_timeout=1, socket_timeout=1)
+    r = redis.Redis(host=REDIS_HOSTNAME, port=REDIS_PORT, password=REDIS_PASSWORD, socket_connect_timeout=1, socket_timeout=1)
     try:
         r.ping() # Simple call to check connectivity
     except redis.exceptions.ConnectionError as e:

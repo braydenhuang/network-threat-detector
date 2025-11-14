@@ -1,5 +1,5 @@
-import { createMemo, createResource, createSignal, For, Show, type JSX, type Resource } from 'solid-js'
-import type { Health, Service, UploadResponse } from './types';
+import { createMemo, createResource, createSignal, For, Show, type JSX, type Resource, type ResourceActions } from 'solid-js'
+import type { Assignment, Health, Service, UploadResponse } from './types';
 import { allGood, getAPIHealth } from './utils';
 import { uploadFileToAPIWithProgress } from './api';
 
@@ -102,6 +102,49 @@ export function Upload(props: {
                     <button class="hover:cursor-pointer hover:font-semibold rounded-lg px-4 py-2 bg-green-900" onClick={() => setState("Waiting")}>Try Again</button>
                 </div>
             </Show>
+        </div>
+    );
+}
+
+export function ProgressTracker(props: {
+    class?: string | undefined,
+    assignment: Resource<Assignment>,
+    //options: ResourceActions<Assignment | undefined, unknown>
+}): JSX.Element {
+    return (
+        <div class={props.class || ""}>
+            <div class="flex items-center justify-center">
+                <div class="flex w-full max-w-5xl px-4 text-white text-sm font-medium">
+
+                    <div class="relative flex-1 z-30">
+                        <div
+                            class="flex h-16 items-center justify-center px-10
+               bg-blue-500/95 ring-1 ring-neutral-50/70 shadow-lg
+               [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
+                            Step One
+                        </div>
+                    </div>
+
+                    <div class="relative flex-1 -ml-8 z-20">
+                        <div
+                            class="flex h-16 items-center justify-center px-10
+               bg-blue-500/80 ring-1 ring-neutral-50/60 shadow-lg
+               [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
+                            Step Two
+                        </div>
+                    </div>
+
+                    <div class="relative flex-1 -ml-8 z-10">
+                        <div
+                            class="flex h-16 items-center justify-center px-10
+               bg-blue-500/70 ring-1 ring-neutral-50/50 shadow-lg
+               [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
+                            Step Three
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
     );
 }

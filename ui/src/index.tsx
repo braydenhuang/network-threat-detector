@@ -5,10 +5,13 @@ import { render } from 'solid-js/web'
 import { Router, Route } from "@solidjs/router";
 import './index.css'
 import App from './App'
+import Assignment from './Assignment';
 
 const root = document.getElementById('root')
 
 render(() =>
-    <Router root={App}>
+    <Router>
+        <Route path="/" component={App} />
+        <Route path="/:assignment_id" component={Assignment} />
     </Router>,
     root!)

@@ -6,7 +6,7 @@ from utils import *
 from rq import Worker
 import os, subprocess, tempfile, uuid, shutil
 
-def run_cicflowmeter(s3_key):
+def run_cicflowmeter(s3_key, assignment_id: str | None = None) -> JobResult:
     HEALTH = healthcheck()
     
     if HEALTH.all_good():
@@ -17,7 +17,7 @@ def run_cicflowmeter(s3_key):
     else:
         return HealthCheckResult.new(HEALTH).model_dump_json()
     
-    result = CICFlowMeterResult.new()
+    result = JobResult.new()
     
     # ======== Download pcap from S3 ========
     
@@ -29,7 +29,7 @@ def run_cicflowmeter(s3_key):
 
     output_directory = tempfile.mkdtemp()
     
-    subprocess.run(["bash", "./cicflowmeter.sh", pcap_directory, output_directory], check=True, cwd="/tool")
+    subprocess.run(["gradle", "--no-daemon", f"-Pcmdargs={pcap_directory}:{output_directory}", "runcmd"], check=True, cwd="/worker")
 
     # ======== Upload output CSV to MinIO ========
 
@@ -44,12 +44,14 @@ def run_cicflowmeter(s3_key):
         
     # ======== Finally, enqueue ML job with flow information ========
     
-    ml_job = ML_QUEUE.enqueue(None, flow_key) # TODO: Replace None with actual ML processing function
+    assignment = get_assignment(REDIS, assignment_id)
+    if assignment is not None:
+        pass # TODO
+    #ml_job = ML_QUEUE.enqueue(None, flow_key) # TODO: Replace None with actual ML processing function
             
         
     result.success = True
-    result.ml_job_id = ml_job.id
-    result.flow_s3_key = flow_key
+    result.next_job_id = None # TODO: ml_job.id
     return result.model_dump_json()
 
 if __name__ == "__main__":

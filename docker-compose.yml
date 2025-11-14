@@ -1,0 +1,67 @@
+# This is a docker-compose file for single-node production deployments.
+
+# Remember to define required environment variables before running!
+
+services:
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    depends_on:
+      - caddy
+  api:
+    build:
+      context: ./api
+      dockerfile: ./docker/API_Dockerfile
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+    depends_on:
+      - redis
+      - minio
+      - caddy
+  cicflowmeter_worker:
+    build:
+      context: ./api
+      dockerfile: ./docker/CICFlowMeter_Dockerfile
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+    depends_on:
+      - redis
+      - minio
+  redis:
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+  minio:
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
+    command: server /data
+    environment: 
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./minio/data:/data
+  caddy:
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    ports:
+      - "80:80" # Connect to the application on port 80. Only this port is exposed.
