@@ -1,7 +1,7 @@
 // 
 
 import { useParams } from '@solidjs/router';
-import { createResource, createSignal, onCleanup, onMount, Show, type JSX } from 'solid-js'
+import { createResource, createSignal, onCleanup, onMount, Show, type JSX, type Accessor, type ResourceOptions } from 'solid-js'
 import { getAssignment, sleep, validateUUID } from './utils';
 import { ProgressTracker } from './elements';
 
@@ -20,26 +20,8 @@ export default function Assignment(): JSX.Element {
         return undefined as any;
     });
 
-    let refetchCount = 3; // Start with 2^3 = 8 seconds
-    const [refreshCountdown, setRefreshCountdown] = createSignal(Math.pow(2, refetchCount)); // In seconds
-    const raiseCountdown = (current: number) => setRefreshCountdown(current >= 2048 ? 2048 : current * Math.pow(2, ++refetchCount));
-    let refetchTask: number | undefined;
-    onMount(async () => {
-        if (valid)
-            setInterval(() => {
-                const count = refreshCountdown();
-                if (count <= 1) {
-                    options.refetch();
-                    raiseCountdown(count);
-                } else 
-                    setRefreshCountdown(count - 1);
-            }, 1000);
-    });
-
-    onCleanup(() => {
-        if (refetchTask != undefined)
-            clearInterval(refetchTask);
-    });
+    // If we have a valid assignment ID, set up the refresh countdown
+    const refreshCountdown = valid ? refresh(onMount, onCleanup, options) : undefined;
 
     return (
         // Main container
@@ -56,7 +38,7 @@ export default function Assignment(): JSX.Element {
                 { /* Center box */}
                 <div class="flex flex-col m-auto">
 
-                    <Show when={!valid}>
+                    <Show when={!valid || assignment.error}>
                         <div class="border rounded-2xl mx-auto border-neutral-50 border-opacity-50">
                             <div class="flex flex-col items-center justify-center p-8">
                                 <h1 class="text-center text-2xl font-semibold mb-2">Oops! That page doesn't exist.</h1>
@@ -64,7 +46,7 @@ export default function Assignment(): JSX.Element {
                             </div>
                         </div>
                     </Show>
-                    <Show when={valid}>
+                    <Show when={valid && !assignment.error}>
                         <>
                             <ProgressTracker
                                 assignment={assignment}
@@ -77,4 +59,33 @@ export default function Assignment(): JSX.Element {
             </div>
         </>
     );
+}
+
+
+function refresh(
+    onMount: (fn: () => void) => void,
+    onCleanup: (fn: () => void) => void,
+    options: ResourceOptions
+): Accessor<number> {
+    let refetchCount = 3; // Start with 2^3 = 8 seconds
+    const [refreshCountdown, setRefreshCountdown] = createSignal(Math.pow(2, refetchCount)); // In seconds
+    const raiseCountdown = (current: number) => setRefreshCountdown(current >= 2048 ? 2048 : current * Math.pow(2, ++refetchCount));
+    let refetchTask: number | undefined;
+    onMount(async () => {
+        setInterval(() => {
+            const count = refreshCountdown();
+            if (count <= 1) {
+                options.refetch();
+                raiseCountdown(count);
+            } else 
+                setRefreshCountdown(count - 1);
+        }, 1000);
+    });
+
+    onCleanup(() => {
+        if (refetchTask != undefined)
+            clearInterval(refetchTask);
+    });
+
+    return refreshCountdown;
 }
