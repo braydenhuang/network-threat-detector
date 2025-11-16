@@ -9,6 +9,7 @@ services:
       - "3000:3000" # The U.I is directly accessible via this port in development
     volumes:
       - ./ui:/app
+      - /app/node_modules # Anonymous volume ensures npm builds work correctly regardless of dependencies present on host
     depends_on:
       - caddy
   api:
