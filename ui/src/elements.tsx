@@ -36,6 +36,15 @@ export function Upload(props: {
         setState('Done');
     };
 
+    const redirectToAssignment = () => {
+        const response = result();
+
+        if (response == null || !response.success || response.assignment_id == null)
+            return;
+
+        window.open(`/${response.assignment_id}`, '_blank');
+    }
+
     return (
         <div class={`${props.class || ""} min-w-[360px] min-h-[60px]`}>
             <Show when={state() === 'Waiting'}>
@@ -85,7 +94,7 @@ export function Upload(props: {
                         <div class="flex flex-col items-center justify-center p-8">
                             <p class="font-bold italic text-green-500">Successfully submitted {result()?.filename} for processing!</p>
                             <p class="font-semibold italic text-xs text-neutral-300 mb-2">{result()?.filesize} bytes total</p>
-                            <button class="hover:cursor-pointer hover:font-semibold rounded-lg px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-medium shadow-lg shadow-sky-900/40 hover:from-sky-500 hover:to-indigo-500" onClick={() => setState("Waiting")}>See Progress</button>
+                            <button class="hover:cursor-pointer hover:font-semibold rounded-lg px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-medium shadow-lg shadow-sky-900/40 hover:from-sky-500 hover:to-indigo-500" onClick={redirectToAssignment}>See Progress</button>
                         </div>
                     </Show>
                     <Show when={result()?.success == false}>

@@ -52,7 +52,7 @@ export default function Assignment(): JSX.Element {
                                 assignment={assignment}
                             //options={options}
                             />
-                            <p>Checking again in {refreshCountdown && refreshCountdown()} seconds...</p>
+                            <p>Checking again in {refreshCountdown!()} seconds...</p>
                         </>
                     </Show>
                 </div>
