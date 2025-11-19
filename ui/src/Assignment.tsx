@@ -1,8 +1,8 @@
 // 
 
 import { useParams } from '@solidjs/router';
-import { createResource, createSignal, onCleanup, onMount, Show, type JSX, type Accessor, type ResourceOptions } from 'solid-js'
-import { getAssignment, sleep, validateUUID } from './utils';
+import { createResource, createSignal, onCleanup, onMount, Show, type Accessor, type JSX, type ResourceActions } from 'solid-js'
+import { getAssignment, validateUUID } from './utils';
 import { ProgressTracker } from './elements';
 
 export default function Assignment(): JSX.Element {
@@ -52,7 +52,7 @@ export default function Assignment(): JSX.Element {
                                 assignment={assignment}
                             //options={options}
                             />
-                            <p>Checking again in {refreshCountdown()} seconds...</p>
+                            <p>Checking again in {refreshCountdown && refreshCountdown()} seconds...</p>
                         </>
                     </Show>
                 </div>
@@ -65,7 +65,7 @@ export default function Assignment(): JSX.Element {
 function refresh(
     onMount: (fn: () => void) => void,
     onCleanup: (fn: () => void) => void,
-    options: ResourceOptions
+    options: ResourceActions<any, unknown>
 ): Accessor<number> {
     let refetchCount = 3; // Start with 2^3 = 8 seconds
     const [refreshCountdown, setRefreshCountdown] = createSignal(Math.pow(2, refetchCount)); // In seconds
