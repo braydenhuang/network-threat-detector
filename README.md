@@ -37,7 +37,7 @@ docker compose up
 
 ## Development Deployment
 
-*(For single-node deployments)*
+The development compose file exposes service ports and uses weak passwords. Only use this in development!
 
 1.) Install Docker and Docker Compose
 
@@ -47,3 +47,5 @@ docker-compose -f dev-docker-compose.yml up
 ```
 
 3.) Compose volumes allow Flask (backend) and Vite (frontend) debuggers to refresh upon live changes to the code.
+
+4.) Browse the local datastore by opening `http://localhost:9001` to view the Minio web console!
