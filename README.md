@@ -26,4 +26,4 @@ docker compose up
 docker-compose -f dev-docker-compose.yml up
 ```
 
-3.) Compose volumes allow Python (backend) and Vite (frontend) debuggers to refresh upon live changes to the code.
+3.) Compose volumes allow Flask (backend) and Vite (frontend) debuggers to refresh upon live changes to the code.
