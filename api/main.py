@@ -71,7 +71,7 @@ def upload():
 def get_assignment_by_id(assignment_id: str):
     assignment = get_assignment(REDIS, assignment_id)
     if assignment is None:
-        return None, 404
+        return '', 404
     
     return assignment.model_dump_json()
 
@@ -79,7 +79,7 @@ def get_assignment_by_id(assignment_id: str):
 def get_job_by_id(job_id: str):
     job = get_job(REDIS, job_id)
     if job is None:
-        return None, 404
+        return '', 404
     
     return JobResponse(
         id = job.id,
