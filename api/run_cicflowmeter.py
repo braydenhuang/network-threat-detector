@@ -5,6 +5,7 @@ from utils import *
 
 from rq import Worker
 import os, subprocess, tempfile, uuid, shutil
+from run_ml import run_ml
 
 def run_cicflowmeter(s3_key, assignment_id: str | None = None) -> JobResult:
     HEALTH = healthcheck()
@@ -45,13 +46,37 @@ def run_cicflowmeter(s3_key, assignment_id: str | None = None) -> JobResult:
     # ======== Finally, enqueue ML job with flow information ========
     
     assignment = get_assignment(REDIS, assignment_id)
+    ml_job = None
     if assignment is not None:
-        pass # TODO
+        #enqueue ML stage
+        stage = Stage.new_ml_stage()
+        assignment = enqueue_job(
+            REDIS,
+            ML_QUEUE,
+            stage,
+            assignment,
+            run_ml,
+            flow_key,
+            assignment_id=assignment.id
+        )
+        ml_job_id = stage.id
+        result.next_job_id = ml_job_id
+    else:
+        #no assignment tracking; still run ML job without assignment id
+        ml_job = ML_QUEUE.enqueue(
+            run_ml,
+            args = (flow_key, None),
+            connection = REDIS,
+            result_ttl = 604800,
+            ttl = 300
+        )
+        result.next_job_id = ml_job.id if ml_job is not None else None
+        
     #ml_job = ML_QUEUE.enqueue(None, flow_key) # TODO: Replace None with actual ML processing function
             
         
     result.success = True
-    result.next_job_id = None # TODO: ml_job.id
+    #result.next_job_id = None # TODO: ml_job.id
     return result.model_dump_json()
 
 if __name__ == "__main__":
