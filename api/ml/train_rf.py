@@ -106,7 +106,7 @@ def main():
     print("\nEvaluation on hold-out set:")
     y_pred = model.predict(X_test)
     print(classification_report(y_test, y_pred))
-    out_path = Path("rf_cicids2018.joblib")
+    out_path = Path("api/ml/rf_cicids2018.joblib")
     joblib.dump(
         {
             "model": model,
