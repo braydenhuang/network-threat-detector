@@ -5,6 +5,8 @@
 /* Do not modify it by hand - just update the pydantic models and then re-run the script
 */
 
+export type Prediction = "BENIGN" | "MALICIOUS";
+
 export interface Assignment {
   id: string;
   stages: Stage[];
@@ -34,12 +36,18 @@ export interface JobResponse {
   queue: string;
   enqeued_at: string | null;
   ended_at: string | null;
-  result: JobResult | null;
+  result: JobResult | MLJobResult | null;
 }
 export interface JobResult {
   success: boolean;
   message: string | null;
   next_job_id: string | null;
+}
+export interface MLJobResult {
+  success: boolean;
+  message: string | null;
+  next_job_id: string | null;
+  prediction: Prediction | null;
 }
 export interface UploadResponse {
   filename: string;

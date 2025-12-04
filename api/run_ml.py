@@ -7,7 +7,6 @@ from rq import Worker
 from pathlib import Path
 import os
 import tempfile
-import uuid
 import shutil
 import pandas as pd
 import numpy as np
@@ -75,7 +74,7 @@ def prepare_features(df: pd.DataFrame, feature_names: list[str]) -> tuple[pd.Dat
     X = X[feature_names]
     return X, kept_idx
 
-def run_ml(flow_key: str, assignment_id: str | None = None) -> JobResult:
+def run_ml(flow_key: str, assignment_id: str) -> JobResult:
     #ML job: download flow csv from s3, run RF model, upload predictions csv. 
 
     HEALTH = healthcheck()
@@ -83,76 +82,60 @@ def run_ml(flow_key: str, assignment_id: str | None = None) -> JobResult:
         return HealthCheckResult.new(HEALTH).model_dump_json()
     
     S3 = get_s3_client()
-    result = JobResult.new()
+    result = MLJobResult.new()
 
     tmpdir = tempfile.mkdtemp()
-    try:
-        #down flow csv from s3
-        local_flow_path = os.path.join(tmpdir, os.path.basename(flow_key))
-        print(f"[run_ml] Downloading flow CSV s3://{S3_BUCKET}/{flow_key} to {local_flow_path}")
-        S3.download_file(S3_BUCKET, flow_key, local_flow_path)
+    
+    #down flow csv from s3
+    local_flow_path = os.path.join(tmpdir, os.path.basename(flow_key))
+    print(f"[run_ml] Downloading flow CSV s3://{S3_BUCKET}/{flow_key} to {local_flow_path}")
+    S3.download_file(S3_BUCKET, flow_key, local_flow_path)
 
-        #local model and flow csv
-        bundle = load_model_bundle()
-        model = bundle["model"]
-        feature_names: list[str] = bundle["feature_names"]
+    #local model and flow csv
+    bundle = load_model_bundle()
+    model = bundle["model"]
+    feature_names: list[str] = bundle["feature_names"]
 
-        df = pd.read_csv(local_flow_path)
-        print(f"[run_ml] Loaded flow CSV with shape {df.shape}")
+    df = pd.read_csv(local_flow_path)
+    print(f"[run_ml] Loaded flow CSV with shape {df.shape}")
 
-        #prepare features
-        X, kept_idx = prepare_features(df, feature_names)
-        if X.empty:
-            print("[run_ml] No valid rows after cleaning: aborting")
-            result.success = False
-            #if jobresult has a message field, record it
-            try:
-                result.message = "No valid rows in flow CSV after cleaning"
-            except AttributeError:
-                pass
-            result.next_job_id = None
-            return result.model_dump_json()
-        print(f"[run_ml] Using {len(X)} rows for prediction")
-
-        #predict
-        y_pred = model.predict(X)
-
-        #attach predictions to the kept subset of rows
-        df_pred = df.loc[kept_idx].copy()
-        df_pred["Prediction"] = y_pred
-
-        #upload predictions csv to s3
-        pred_local = os.path.join(tmpdir, f"predictions_{uuid.uuid4()}.csv")
-        df_pred.to_csv(pred_local, index=False)
-
-        pred_key = f"predictions/{uuid.uuid4()}.csv"
-        print(f"[run_ml] Uploading predictions CSV to s3://{S3_BUCKET}/{pred_key}")
-        S3.upload_file(pred_local, S3_BUCKET, pred_key)
-
-        #optionally update assignment record
-        if assignment_id is not None:
-            REDIS = get_redis_client()
-            assignment = get_assignment(REDIS, assignment_id)
-            if assignment is not None:
-                #field for result key
-                REDIS.set(f"assignment:{assignment.id}",
-                          assignment.model_dump_json(),
-                          ex=604800
-                          )
-        
-        #fill JobResult
-        result.success = True
-        result.next_job_id = None
+    #prepare features
+    X, _ = prepare_features(df, feature_names)
+    if X.empty:
+        print("[run_ml] No valid rows after cleaning: aborting")
+        result.success = False
+        #if jobresult has a message field, record it
         try:
-            #if JobResult has a 'message' field, store S3 location
-            result.message = f"Predictions stored at s3//{S3_BUCKET}/{pred_key}"
+            result.message = "No valid rows in flow CSV after cleaning, task aborted."
         except AttributeError:
             pass
-
+        result.next_job_id = None
         return result.model_dump_json()
+    print(f"[run_ml] Using {len(X)} rows for prediction")
+
+    #predict
+    y_pred = model.predict(X)
+    prediction = y_pred[0]
+
+    #update assignment record
+    REDIS = get_redis_client()
+    assignment = get_assignment(REDIS, assignment_id)
+    if assignment is not None:
+        #field for result key
+        REDIS.set(f"assignment:{assignment.id}",
+                    assignment.model_dump_json(),
+                    ex=604800
+                    )
     
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+    #fill ML JobResult
+    result.success = True
+    result.next_job_id = None
+    result.prediction = Prediction[prediction.upper()] # Either BENIGN or MALICIOUS
+    result.message = f"Our model suggests your sample is {result.prediction}."
+    
+    shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return result.model_dump_json()
 
 
 if __name__ == "__main__":

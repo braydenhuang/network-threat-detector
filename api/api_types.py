@@ -1,10 +1,12 @@
 # Define types here with pydantic-to-typescript. 
 # Use ../generate_typescript.sh to transfer these types to the frontend.
 
+from functools import reduce
 from werkzeug.datastructures import FileStorage
 from pydantic import BaseModel
 from typing import Optional
 from uuid import uuid4
+from enum import Enum
 
 class Service(BaseModel):
     working: bool
@@ -83,18 +85,40 @@ class JobResult(BaseModel):
     def new(success: bool = False, message: Optional[str] = None, next_job_id: Optional[str] = None):
         return JobResult(success=success, message=message, next_job_id=next_job_id)
     
+    def create_from(json: str):
+        result_types = Prediction.values()
+        is_ml_result = reduce(lambda accumumator, value: accumumator or (f"\"prediction\":\"{value}\"" in json), result_types, False)
+        
+        if is_ml_result:
+            return MLJobResult.model_validate_json(json)
+        
+        return JobResult.model_validate_json(json)
+    
+class Prediction(str, Enum):
+    BENIGN = "BENIGN"
+    MALICIOUS = "MALICIOUS"
+    
+    def values():
+        return [member.name for member in Prediction]
+    
+    def __str__(self):
+        match self:
+            case Prediction.BENIGN:
+                return "benign"
+            case Prediction.MALICIOUS:
+                return "malicious"
+
+class MLJobResult(JobResult):
+    prediction: Optional[Prediction]
+    
+    def new(success: bool = False, message: Optional[str] = None, next_job_id: Optional[str] = None, prediction: Optional[Prediction] = None):
+        return MLJobResult(success=success, message=message, next_job_id=next_job_id, prediction=prediction)
+    
 class HealthCheckResult(JobResult):
     health: Health
     
     def new(health: Health, success=False, message: Optional[str] = None):
         return HealthCheckResult(success=success, message=message, health=health)
-    
-#class CICFlowMeterResult(JobResult):
-    #ml_job_id: Optional[str]
-    #flow_s3_key: Optional[str]
-    
-    #def new(success: bool = False, message: Optional[str] = None, ml_job_id: Optional[str] = None, flow_s3_key: Optional[str] = None):
-        #return CICFlowMeterResult(success=success, message=message, ml_job_id=ml_job_id, flow_s3_key=flow_s3_key)
     
 class JobResponse(BaseModel):
     id: str
@@ -102,4 +126,4 @@ class JobResponse(BaseModel):
     queue: str
     enqeued_at: Optional[str]
     ended_at: Optional[str]
-    result: Optional[JobResult]
+    result: Optional[JobResult | MLJobResult]
