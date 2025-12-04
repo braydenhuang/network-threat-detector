@@ -16,7 +16,8 @@ export default function App(): JSX.Element {
                 <APIHealthIndicator class="mx-4 ml-auto" onClick=
                     {
                         (health) => setContent((<APIHealthPanel health={health} />))
-                    } />
+                    } 
+                />
             </div>
             { /* Content with blue color */}
             <div class="flex bg-sky-950 text-neutral-50 w-full h-screen">

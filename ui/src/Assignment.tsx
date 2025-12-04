@@ -3,9 +3,21 @@
 import { useParams } from '@solidjs/router';
 import { createResource, createSignal, onCleanup, onMount, Show, type Accessor, type JSX, type ResourceActions } from 'solid-js'
 import { getAssignment, validateUUID } from './utils';
-import { ProgressTracker } from './elements';
+import { Feedback, ProgressTracker } from './elements';
 
 export default function Assignment(): JSX.Element {
+    const [finished, setFinished] = createSignal(false);
+
+    let stages = 2;
+    const countFinished = () => {
+        stages--;
+
+        if (stages <= 0)
+            setFinished(true);
+    };
+
+    // ===========================
+
     const params = useParams();
 
     const assignment_id = params.assignment_id;
@@ -21,7 +33,7 @@ export default function Assignment(): JSX.Element {
     });
 
     // If we have a valid assignment ID, set up the refresh countdown
-    const refreshCountdown = valid ? refresh(onMount, onCleanup, options) : undefined;
+    const refreshCountdown = valid ? refresh(onMount, onCleanup, options, finished) : undefined;
 
     return (
         // Main container
@@ -50,9 +62,29 @@ export default function Assignment(): JSX.Element {
                         <>
                             <ProgressTracker
                                 assignment={assignment}
-                            //options={options}
+                                onFinish={countFinished}
                             />
-                            <p>Checking again in {refreshCountdown!()} seconds...</p>
+
+                            <Show when={!finished()}>
+                                <p class="text-sm italic font-semibold">
+                                    Checking again in {refreshCountdown!()} seconds...
+                                    <a class="hover:font-bold hover:underline" onClick={options.refetch}>(Check now)</a>
+                                </p>
+                            </Show>
+
+                            <Show when={finished()}>
+                                <p class="mt-4 text-center text-xl font-semibold">
+                                    We've finished processing your file!
+                                </p>
+                                <p class="mb-32 text-center italic text-slate-100">
+                                    Please find your results above.
+                                </p>
+
+                                <Feedback 
+                                    class="mx-auto" 
+                                    assignment_id={assignment().id} 
+                                />
+                            </Show>
                         </>
                     </Show>
                 </div>
@@ -65,7 +97,8 @@ export default function Assignment(): JSX.Element {
 function refresh(
     onMount: (fn: () => void) => void,
     onCleanup: (fn: () => void) => void,
-    options: ResourceActions<any, unknown>
+    options: ResourceActions<any, unknown>,
+    finished: Accessor<boolean>
 ): Accessor<number> {
     let refetchCount = 3; // Start with 2^3 = 8 seconds
     const [refreshCountdown, setRefreshCountdown] = createSignal(Math.pow(2, refetchCount)); // In seconds
@@ -74,10 +107,10 @@ function refresh(
     onMount(async () => {
         setInterval(() => {
             const count = refreshCountdown();
-            if (count <= 1) {
+            if (count <= 1 && !finished()) {
                 options.refetch();
                 raiseCountdown(count);
-            } else 
+            } else
                 setRefreshCountdown(count - 1);
         }, 1000);
     });
