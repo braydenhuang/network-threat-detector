@@ -1,6 +1,6 @@
-import { createEffect, createMemo, createResource, createSignal, For, Show, type JSX, type Resource } from 'solid-js'
-import type { Assignment, Health, JobResponse, Service, Stage, UploadResponse } from './types';
-import { allGood, getAPIHealth, getJob, unixTimestampToDateString } from './utils';
+import { createEffect, createMemo, createResource, createSignal, For, Show, Suspense, SuspenseList, type JSX, type Resource } from 'solid-js'
+import type { Assignment, Health, JobResult, MLJobResult, Service, Stage, UploadResponse } from './types';
+import { allGood, Rotate, getAPIHealth, getJob, unixTimestampToDateString } from './utils';
 import { uploadFileToAPIWithProgress } from './api';
 
 export function Upload(props: {
@@ -204,7 +204,7 @@ function StatusButton(props: {
 function Status(props: {
     class?: string | undefined
     stage: Stage
-    onFinish: (response: JobResponse) => void
+    onFinish: (result: JobResult | MLJobResult | undefined) => void
 }): JSX.Element {
     type View = 'Closed' | 'Status' | 'Results';
 
@@ -214,7 +214,7 @@ function Status(props: {
 
     createEffect(() => {
         if (job() != undefined && job()?.status === 'finished')
-            props.onFinish?.(job()!);
+            props.onFinish?.(job()!.result || undefined);
     });
 
     return (
@@ -293,25 +293,14 @@ function Status(props: {
 export function ProgressTracker(props: {
     class?: string | undefined,
     assignment: Resource<Assignment>,
-    onFinish: (response: JobResponse) => void
+    onFinish: (result: JobResult | MLJobResult | undefined) => void
 }): JSX.Element {
-    class Colors extends Array<string> {
-        constructor() {
-            super();
-            this.push("violet-500/80");
-            this.push("blue-500/70");
-        }
-
-        get(index: number) {
-            return this[index % this.length];
-        }
-
-        set(_index: number, _value: string) {
-            // Do nothing
-        }
-    }
-
-    const COLORS = new Colors();
+    const COLORS = new Rotate(
+        [
+            "bg-violet-500/80",
+            "bg-blue-500/70"
+        ]
+    );
 
     const stages = createMemo(() => props.assignment()?.stages);
 
@@ -330,24 +319,30 @@ export function ProgressTracker(props: {
                         </div>
                     </div>
 
-                    <For each={stages()}>
-                        {(stage, index) => (
-                            <div class="relative flex-1 -ml-8 z-20">
-                                <div
-                                    class={`flex items-center justify-center min-w-64 h-full px-10 py-8 bg-${COLORS[index()]} ring-1 ring-neutral-50/60 shadow-lg [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]`}>
-                                    <div class="ml-5">
-                                        <p class="text-lg mb-1">{stage.name}</p>
-                                        <p class="text-sm text-slate-100 opacity-95 mb-3">{stage.description}</p>
+                    { /* <SuspenseList> ensures our stages render left-to-right, 
+                         guaranteeing props.onFinish is called in the same order as the stages*/ }
+                    <SuspenseList revealOrder="forwards">
+                        <For each={stages()}>
+                            {(stage, index) => (
+                                <Suspense fallback={<p class="text-sm italic text-slate-100">Loading stage...</p>}>
+                                    <div class="relative flex-1 -ml-8 z-20">
+                                        <div
+                                            class={`flex items-center justify-center min-w-64 h-full px-10 py-8 ${COLORS[index()]} ring-1 ring-neutral-50/60 shadow-lg [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]`}>
+                                            <div class="ml-5">
+                                                <p class="text-lg mb-1">{stage.name}</p>
+                                                <p class="text-sm text-slate-100 opacity-95 mb-3">{stage.description}</p>
 
-                                        <Status
-                                            stage={stage}
-                                            onFinish={props.onFinish}
-                                        />
+                                                <Status
+                                                    stage={stage}
+                                                    onFinish={props.onFinish}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
-                    </For>
+                                </Suspense>
+                            )}
+                        </For>
+                    </SuspenseList>
 
                 </div>
             </div>

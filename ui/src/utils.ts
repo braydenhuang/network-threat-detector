@@ -1,5 +1,5 @@
 import { getFromAPI } from "./api";
-import type { Assignment, Health, JobResponse, Service } from "./types";
+import type { Assignment, Health, JobResponse, JobResult, MLJobResult, Service } from "./types";
 
 export async function getAPIHealth(): Promise<Health> {
     return getFromAPI<Health>("");
@@ -41,4 +41,28 @@ export function validateUUID(uuid: string): boolean {
 
 export async function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function compare(a: JobResult | MLJobResult, b: JobResult | MLJobResult): boolean {
+    return a.success === b.success &&
+           a.message === b.message &&
+           a.next_job_id === b.next_job_id;
+}
+
+export class Rotate extends Array<string> {
+    constructor(items: Iterable<string>) {
+        super();
+        
+        for (const item of items)
+            this.push(item);
+    }
+
+    get(index: number) {
+        return this[index % this.length];
+    }
+
+    set(_index: number, _value: string) {
+        // Don't let people edit the array
+        throw new Error("This object is immutable!");
+    }
 }

@@ -1,19 +1,24 @@
 // 
 
 import { useParams } from '@solidjs/router';
-import { createResource, createSignal, onCleanup, onMount, Show, type Accessor, type JSX, type ResourceActions } from 'solid-js'
-import { getAssignment, validateUUID } from './utils';
+import { createMemo, createResource, createSignal, onCleanup, onMount, Show, type Accessor, type JSX, type ResourceActions } from 'solid-js'
+import { compare, getAssignment, validateUUID } from './utils';
 import { Feedback, ProgressTracker } from './elements';
+import type { JobResult, MLJobResult } from './types';
 
 export default function Assignment(): JSX.Element {
-    const [finished, setFinished] = createSignal(false);
+    const [finalResult, setFinalResult] = createSignal<JobResult | undefined>(undefined);
+    const finished = createMemo(() => finalResult() != undefined);
 
-    let stages = 2;
-    const countFinished = () => {
-        stages--;
+    let results: (JobResult | MLJobResult)[] = [];
+    const countFinished = (result: JobResult | MLJobResult | undefined) => {
+        if (result == undefined || results.find(existing => compare(existing, result)) != undefined)
+            return;
 
-        if (stages <= 0)
-            setFinished(true);
+        results.push(result);
+
+        if (results.length >= 2)
+            setFinalResult(results[results.length - 1]);
     };
 
     // ===========================
@@ -66,23 +71,27 @@ export default function Assignment(): JSX.Element {
                             />
 
                             <Show when={!finished()}>
-                                <p class="text-sm italic font-semibold">
+                                <p class="ml-4 text-sm italic font-semibold">
                                     Checking again in {refreshCountdown!()} seconds...
                                     <a class="hover:font-bold hover:underline" onClick={options.refetch}>(Check now)</a>
                                 </p>
                             </Show>
 
                             <Show when={finished()}>
-                                <p class="mt-4 text-center text-xl font-semibold">
-                                    We've finished processing your file!
-                                </p>
-                                <p class="mb-32 text-center italic text-slate-100">
-                                    Please find your results above.
-                                </p>
+                                <div class={`mx-auto my-8 sm:w-128 w-4/5 rounded-2xl border border-emerald-900 ${finalResult()?.success ? "bg-teal-800" : "bg-red-800"}`}>
+                                    <p class="mt-4 text-center sm:text-xl text-base font-semibold">
+                                        We've finished processing your file!
+                                    </p>
 
-                                <Feedback 
-                                    class="mx-auto" 
-                                    assignment_id={assignment().id} 
+                                    <div class="text-slate-100">
+                                        <p class="text-center">{finalResult()?.success ? "Job Successful" : "Task Failed"}</p>
+                                        <p class="mb-4 text-center text-xs text-slate-300">{finalResult()?.message || ""}</p>
+                                    </div>
+                                </div>
+
+                                <Feedback
+                                    class="mx-auto sm:w-128 w-4/5"
+                                    assignment_id={assignment().id}
                                 />
                             </Show>
                         </>
