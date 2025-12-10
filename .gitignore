@@ -210,3 +210,6 @@ __marimo__/
 .minio.sys/
 xl.meta
 part.1
+
+# ML models are usually too large to be put on Github
+api/ml/*.joblib

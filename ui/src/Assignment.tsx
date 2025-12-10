@@ -1,11 +1,28 @@
 // 
 
 import { useParams } from '@solidjs/router';
-import { createResource, createSignal, onCleanup, onMount, Show, type Accessor, type JSX, type ResourceActions } from 'solid-js'
-import { getAssignment, validateUUID } from './utils';
-import { ProgressTracker } from './elements';
+import { createMemo, createResource, createSignal, onCleanup, onMount, Show, type Accessor, type JSX, type ResourceActions } from 'solid-js'
+import { compare, getAssignment, validateUUID } from './utils';
+import { Feedback, ProgressTracker } from './elements';
+import type { JobResult, MLJobResult } from './types';
 
 export default function Assignment(): JSX.Element {
+    const [finalResult, setFinalResult] = createSignal<JobResult | undefined>(undefined);
+    const finished = createMemo(() => finalResult() != undefined);
+
+    let results: (JobResult | MLJobResult)[] = [];
+    const countFinished = (result: JobResult | MLJobResult | undefined) => {
+        if (result == undefined || results.find(existing => compare(existing, result)) != undefined)
+            return;
+
+        results.push(result);
+
+        if (results.length >= 2)
+            setFinalResult(results[results.length - 1]);
+    };
+
+    // ===========================
+
     const params = useParams();
 
     const assignment_id = params.assignment_id;
@@ -21,22 +38,22 @@ export default function Assignment(): JSX.Element {
     });
 
     // If we have a valid assignment ID, set up the refresh countdown
-    const refreshCountdown = valid ? refresh(onMount, onCleanup, options) : undefined;
+    const refreshCountdown = valid ? refresh(onMount, onCleanup, options, finished) : undefined;
 
     return (
         // Main container
-        <>
+        <div class="flex flex-col min-h-screen">
             { /* Header with dark blue color */}
             <div class="flex flex-row flex-wrap bg-sky-950 text-neutral-50 w-full pt-4 min-h-[60px] max-h-[100px]">
-                <h1 class="flex-none mx-4 p-4 text-3xl font-semibold">Network Threat Detector</h1>
+                <h1 class="flex-none ml-8 py-4 max-[380px]:text-sm max-[420px]:text-base max-[470px]:text-xl max-[570px]:text-2xl text-3xl font-semibold">Network Threat Detector</h1>
                 <Show when={valid}>
-                    <button class="hover:cursor-pointer hover:font-semibold rounded-4xl mx-4 ml-auto px-4 py-4 bg-gradient-to-r from-sky-600 to-indigo-600 text-lg text-white font-medium shadow-lg shadow-sky-900/40 hover:from-sky-500 hover:to-indigo-500" onClick={() => window.location.href = "/"}>Back to Home</button>
+                    <button class="hover:cursor-pointer hover:font-semibold rounded-4xl mx-4 ml-auto max-[470px]:p-2 px-4 py-4 bg-gradient-to-r from-sky-600 to-indigo-600 max-[470px]:text-sm text-lg text-white font-medium shadow-lg shadow-sky-900/40 hover:from-sky-500 hover:to-indigo-500" onClick={() => window.location.href = "/"}>Back to Home</button>
                 </Show>
             </div>
             { /* Content with blue color */}
-            <div class="flex bg-sky-950 text-neutral-50 w-full h-screen">
+            <div class="flex-1 flex bg-sky-950 text-neutral-50 w-full">
                 { /* Center box */}
-                <div class="flex flex-col m-auto">
+                <div class="flex flex-col m-auto max-[580px]:my-8">
 
                     <Show when={!valid || assignment.error}>
                         <div class="border rounded-2xl mx-auto border-neutral-50 border-opacity-50">
@@ -50,14 +67,38 @@ export default function Assignment(): JSX.Element {
                         <>
                             <ProgressTracker
                                 assignment={assignment}
-                            //options={options}
+                                onFinish={countFinished}
                             />
-                            <p>Checking again in {refreshCountdown!()} seconds...</p>
+
+                            <Show when={!finished()}>
+                                <p class="ml-4 text-sm italic font-semibold">
+                                    Checking again in {refreshCountdown!()} seconds...
+                                    <a class="hover:font-bold hover:underline" onClick={options.refetch}>(Check now)</a>
+                                </p>
+                            </Show>
+
+                            <Show when={finished()}>
+                                <div class={`mx-auto my-8 sm:w-128 w-4/5 rounded-2xl border border-emerald-900 ${finalResult()?.success ? "bg-teal-800" : "bg-red-800"}`}>
+                                    <p class="mt-4 text-center sm:text-xl text-base font-semibold">
+                                        We've finished processing your file!
+                                    </p>
+
+                                    <div class="text-slate-100">
+                                        <p class="text-center">{finalResult()?.success ? "Job Successful" : "Task Failed"}</p>
+                                        <p class="mb-4 text-center text-xs text-slate-300">{finalResult()?.message || ""}</p>
+                                    </div>
+                                </div>
+
+                                <Feedback
+                                    class="mx-auto sm:w-128 w-4/5"
+                                    assignment_id={assignment().id}
+                                />
+                            </Show>
                         </>
                     </Show>
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 
@@ -65,7 +106,8 @@ export default function Assignment(): JSX.Element {
 function refresh(
     onMount: (fn: () => void) => void,
     onCleanup: (fn: () => void) => void,
-    options: ResourceActions<any, unknown>
+    options: ResourceActions<any, unknown>,
+    finished: Accessor<boolean>
 ): Accessor<number> {
     let refetchCount = 3; // Start with 2^3 = 8 seconds
     const [refreshCountdown, setRefreshCountdown] = createSignal(Math.pow(2, refetchCount)); // In seconds
@@ -74,10 +116,10 @@ function refresh(
     onMount(async () => {
         setInterval(() => {
             const count = refreshCountdown();
-            if (count <= 1) {
+            if (count <= 1 && !finished()) {
                 options.refetch();
                 raiseCountdown(count);
-            } else 
+            } else
                 setRefreshCountdown(count - 1);
         }, 1000);
     });

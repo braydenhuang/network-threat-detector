@@ -1,6 +1,6 @@
-import { createMemo, createResource, createSignal, For, Show, type JSX, type Resource, type ResourceActions } from 'solid-js'
-import type { Assignment, Health, Service, UploadResponse } from './types';
-import { allGood, getAPIHealth } from './utils';
+import { createEffect, createMemo, createResource, createSignal, For, Show, Suspense, SuspenseList, type JSX, type Resource } from 'solid-js'
+import type { Assignment, Health, JobResult, MLJobResult, Service, Stage, UploadResponse } from './types';
+import { allGood, Rotate, getAPIHealth, getJob, unixTimestampToDateString } from './utils';
 import { uploadFileToAPIWithProgress } from './api';
 
 export function Upload(props: {
@@ -115,42 +115,234 @@ export function Upload(props: {
     );
 }
 
+export function Feedback(props: {
+    class?: string | undefined
+    assignment_id: string
+}): JSX.Element {
+    const [submitted, setSubmitted] = createSignal(false);
+
+    return (
+        <div class={`${props.class || ""} rounded-3xl border border-slate-400 lg:w-2/4 w-3/4 p-6`}>
+            <p class="text-center text-xl font-semibold">
+                Did we get it right?
+            </p>
+
+            <Show when={!submitted()}>
+                <div class="flex items-center justify-center gap-8 mt-6">
+                    <button
+                        class="w-24 h-24 rounded-full flex items-center justify-center bg-teal-600 text-white text-2xl shadow-md hover:bg-emerald-500 active:scale-[0.98] transition"
+                        onClick={() => {
+                            setSubmitted(true);
+                            // TODO: send feedback
+                        }}
+                        aria-label="Yes"
+                        title="Yes"
+                    >
+                        👍
+                    </button>
+                    <button
+                        class="w-24 h-24 rounded-full flex items-center justify-center bg-orange-900 text-white text-2xl shadow-md hover:bg-red-500 active:scale-[0.98] transition"
+                        onClick={() => {
+                            setSubmitted(true);
+                            // TODO: send feedback
+                        }}
+                        aria-label="No"
+                        title="No"
+                    >
+                        👎
+                    </button>
+                </div>
+            </Show>
+
+            <Show when={submitted()}>
+                <p class="mt-4 text-center italic font-semibold">
+                    Thanks for your feedback!
+                </p>
+                <p class="text-center italic text-sm font-semibold">
+                    Your response helps us improve our models.
+                </p>
+            </Show>
+        </div>
+    );
+}
+
+function StatusButton(props: {
+    class?: string | undefined
+    status: string
+    onClick?: () => void
+}): JSX.Element {
+    interface Title {
+        name: string;
+        emoji: string;
+    }
+
+    const title = createMemo<Title>(() => {
+        switch (props.status) {
+            case "queued":
+                return { name: "Queued", emoji: "⏳" };
+            case "started":
+                return { name: "In Progress", emoji: "🔄" }
+            case "failed":
+                return { name: "Failed", emoji: "❌" }
+            case "finished":
+                return { name: "Completed", emoji: "✅" }
+            default:
+                return { name: "Unknown", emoji: "❓" };
+        }
+    });
+
+    return (
+        <button
+            class={`${props.class || ""} hover:cursor-default hover:font-semibold hover:bg-blue-800 rounded-xl px-2 py-1 bg-blue-900 text-lg text-white font-medium`}
+            onClick={props.onClick}
+        >
+            {title().emoji} {title().name}
+        </button>
+    );
+}
+
+function Status(props: {
+    class?: string | undefined
+    stage: Stage
+    onFinish: (result: JobResult | MLJobResult | undefined) => void
+}): JSX.Element {
+    type View = 'Closed' | 'Status' | 'Results';
+
+    const [view, setView] = createSignal<View>('Closed');
+
+    const [job] = createResource(() => props.stage.id != null ? getJob(props.stage.id) : undefined);
+
+    createEffect(() => {
+        if (job() != undefined && job()?.status === 'finished')
+            props.onFinish?.(job()!.result || undefined);
+    });
+
+    return (
+        <div class={props.class || ""}>
+            <Show when={view() === 'Closed'}>
+                <StatusButton status={job()?.status || ""} onClick={() => setView('Status')} />
+
+                <Show when={job()?.status === 'finished'}>
+                    <br />
+                    <a class="hover:cursor-default hover:font-bold underline italic" onClick={() => setView('Results')}>View Results</a>
+                </Show>
+            </Show>
+            <Show when={view() === 'Status'}>
+                <div class="rounded-2xl border border-slate-900 bg-blue-900 p-2">
+                    <button
+                        class="mb-4 hover:cursor-default hover:font-semibold hover:bg-blue-900 rounded-xl px-2 py-1 bg-blue-950 text-lg text-white font-medium"
+                        onClick={() => setView('Closed')}
+                    >
+                        Close
+                    </button>
+
+                    <Show when={job() == undefined}>
+                        <p>Loading job information...</p>
+                    </Show>
+                    <Show when={job() != undefined}>
+                        <div class="text-slate-100">
+                            <div class="mb-1 flex flex-row">
+                                <span class="flex-grow">Status:</span>
+                                <span class="">{job()?.status}</span>
+                            </div>
+                            <div class="mb-1 flex flex-row">
+                                <span class="flex-grow">Queue:</span>
+                                <span class="">{job()?.queue}</span>
+                            </div>
+                            <div class="mb-1 flex flex-row">
+                                <span class="flex-grow">Enqueued at:</span>
+                                <span class="">{job()?.enqeued_at != null ? unixTimestampToDateString(parseInt(job()?.enqeued_at as string)) : "(pending)"}</span>
+                            </div>
+                            <div class="flex flex-row">
+                                <span class="flex-grow">Ended at:</span>
+                                <span class="">{job()?.ended_at != null ? unixTimestampToDateString(parseInt(job()?.ended_at as string)) : "(pending)"}</span>
+                            </div>
+                        </div>
+                    </Show>
+                </div>
+            </Show>
+            <Show when={view() === 'Results'}>
+                <div class={`rounded-2xl border border-emerald-900 ${job()?.result?.success ? "bg-teal-800" : "bg-red-800"} p-2`}>
+                    <button
+                        class="mb-4 hover:cursor-default hover:font-semibold hover:bg-blue-900 rounded-xl px-2 py-1 bg-blue-950 text-lg text-white font-medium"
+                        onClick={() => setView('Closed')}
+                    >
+                        Close
+                    </button>
+
+                    <Show when={job() == undefined}>
+                        <p>Loading job information...</p>
+                    </Show>
+                    <Show when={job() != undefined}>
+                        <div class="text-slate-100">
+                            <p class="text-center">{job()?.result?.success ? "Job Successful" : "Task Failed"}</p>
+                            <p class="mb-4 text-center text-xs text-slate-300">{job()?.result?.message || ""}</p>
+
+                            <div class="flex flex-row text-xs">
+                                <span class="flex-grow">Ended at:</span>
+                                <span class="">{job()?.ended_at != null ? unixTimestampToDateString(parseInt(job()?.ended_at as string)) : "(pending)"}</span>
+                            </div>
+                        </div>
+                    </Show>
+                </div>
+            </Show>
+        </div>
+    );
+}
+
 export function ProgressTracker(props: {
     class?: string | undefined,
     assignment: Resource<Assignment>,
-    //options: ResourceActions<Assignment | undefined, unknown>
+    onFinish: (result: JobResult | MLJobResult | undefined) => void
 }): JSX.Element {
+    const COLORS = new Rotate(
+        [
+            "bg-violet-500/80",
+            "bg-blue-500/70"
+        ]
+    );
+
+    const stages = createMemo(() => props.assignment()?.stages);
+
     return (
         <div class={props.class || ""}>
             <div class="flex items-center justify-center">
-                <div class="flex w-full max-w-5xl px-4 text-white text-sm font-medium">
+                <div class="flex flex-wrap w-full max-w-5xl px-4 text-white text-sm font-medium">
 
                     <div class="relative flex-1 z-30">
                         <div
-                            class="flex h-16 items-center justify-center px-10
-               bg-blue-500/95 ring-1 ring-neutral-50/70 shadow-lg
-               [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
-                            Step One
+                            class="flex flex-col items-start justify-center min-w-64 h-full min-h-64 px-10 bg-emerald-500/95 ring-1 ring-neutral-50/70 shadow-lg [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
+                            <div class="ml-5">
+                                <p class="text-lg mb-1">Received file for analysis</p>
+                                <p class="text-sm text-slate-100 opacity-95">We are preparing your file for analysis using machine learning technologies.</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="relative flex-1 -ml-8 z-20">
-                        <div
-                            class="flex h-16 items-center justify-center px-10
-               bg-blue-500/80 ring-1 ring-neutral-50/60 shadow-lg
-               [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
-                            Step Two
-                        </div>
-                    </div>
+                    { /* <SuspenseList> ensures our stages render left-to-right, 
+                         guaranteeing props.onFinish is called in the same order as the stages*/ }
+                    <SuspenseList revealOrder="forwards">
+                        <For each={stages()}>
+                            {(stage, index) => (
+                                <Suspense fallback={<p class="text-sm italic text-slate-100">Loading stage...</p>}>
+                                    <div class="relative flex-1 -ml-8 z-20">
+                                        <div
+                                            class={`flex items-center justify-center min-w-64 h-full px-10 py-8 ${COLORS[index()]} ring-1 ring-neutral-50/60 shadow-lg [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]`}>
+                                            <div class="ml-5">
+                                                <p class="text-lg mb-1">{stage.name}</p>
+                                                <p class="text-sm text-slate-100 opacity-95 mb-3">{stage.description}</p>
 
-                    <div class="relative flex-1 -ml-8 z-10">
-                        <div
-                            class="flex h-16 items-center justify-center px-10
-               bg-blue-500/70 ring-1 ring-neutral-50/50 shadow-lg
-               [clip-path:polygon(0%_0%,90%_0%,100%_50%,90%_100%,0%_100%,10%_50%)]">
-                            Step Three
-                        </div>
-                    </div>
+                                                <Status
+                                                    stage={stage}
+                                                    onFinish={props.onFinish}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Suspense>
+                            )}
+                        </For>
+                    </SuspenseList>
 
                 </div>
             </div>

@@ -1,5 +1,7 @@
 # Network Threat Detector
 
+![Title Image](image.png)
+
 Detects suspicious behavior in *.pcap* files with Machine Learning. Trained on the CSE-CIC-IDS2018 dataset.
 
 Fully containerized architecture utilizes Redis pipeline with S3 (implemented here with Minio). Scalable across different regions.

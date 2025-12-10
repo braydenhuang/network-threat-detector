@@ -47,6 +47,21 @@ services:
     depends_on:
       - redis
       - minio
+  ml_worker:
+    build:
+      context: ./api
+      dockerfile: ./docker/ML_Dockerfile
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AWS_ACCESS_KEY_ID=development # We're connecting to a local MinIO instance that substitutes for real S3
+      - AWS_SECRET_ACCESS_KEY=12345678 # For development purposes only
+      - AWS_DEFAULT_REGION=us-east-1
+      - S3_BUCKET=network-threat-detector
+      - S3_ENDPOINT_URL=http://minio:9000
+    depends_on:
+      - redis
+      - minio
   redis:
     build:
       context: ./redis

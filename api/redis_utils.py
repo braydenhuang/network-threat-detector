@@ -71,7 +71,7 @@ def get_job(redis_client: redis.Redis, id: str) -> Job | None:
     try:
         job = Job.fetch(id, connection=redis_client)
         return job
-    except redis.exceptions.RedisError:
+    except:
         return None
     
     

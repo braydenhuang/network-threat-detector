@@ -23,6 +23,7 @@ S3 = get_s3_client()
 if HEALTH.s3.working:
     create_s3_bucket(S3, S3_BUCKET)
     apply_s3_deletion_policy(S3, S3_BUCKET, prefix="uploads/")
+    apply_s3_deletion_policy(S3, S3_BUCKET, prefix="flows/")
 
 # API root
 @app.route('/')
@@ -87,7 +88,7 @@ def get_job_by_id(job_id: str):
         queue = job.origin,
         enqeued_at = str(round(job.enqueued_at.timestamp() * 1000)) if job.enqueued_at else None, # Get time in milliseconds
         ended_at = str(round(job.ended_at.timestamp() * 1000)) if job.ended_at else None,
-        result = JobResult.model_validate_json(job.result) if job.is_finished else None
+        result = JobResult.create_from(job.result) if job.is_finished else None
     ).model_dump_json()
 
 if __name__ == '__main__':

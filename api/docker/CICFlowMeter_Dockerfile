@@ -35,5 +35,14 @@ RUN apt install -y python3 python3-pip
 COPY requirements.txt ./
 RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
-COPY ./*.py ./
+# Copy application code
+COPY ./run_cicflowmeter.py ./
+COPY ./run_ml.py ./
+COPY ./redis_utils.py ./
+COPY ./s3_utils.py ./
+COPY ./api_types.py ./
+COPY ./utils.py ./
+
+
+# Run the CICFlowMeter processing script
 CMD ["python3", "run_cicflowmeter.py"]
