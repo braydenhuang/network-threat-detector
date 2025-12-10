@@ -14,7 +14,13 @@ TARGET_COL = "Label"
 NON_NUMERIC_COLS = ["Timestamp"]
 
 #how much to sample from each file
-SAMPLE_FRAC = 0.02
+SAMPLE_FRAC = 0.05
+
+RARE_LABELS = {
+    "SQL Injection",
+    "Brute Force -Web",
+    "Brute Force -XSS",
+}
 
 def get_csv_files():
     files = sorted(DATA_DIR.glob(PATTERN))
@@ -87,6 +93,14 @@ def load_sampled_data():
     X = pd.concat(all_X, ignore_index=True)
     y = pd.concat(all_y, ignore_index=True)
 
+    mask = ~y.isin(RARE_LABELS)
+    removed = len(y) - mask.sum()
+    if removed>0:
+        print(f"\nDropping {removed} rows from rare classes: {RARE_LABELS}")
+    
+    X = X[mask]
+    y = y[mask]
+
     print(f"\nTotal training rows after sampling and cleaning: {len(X)}")
     print("Label distribution:")
     print(y.value_counts())
@@ -106,7 +120,9 @@ def main():
     print("\nEvaluation on hold-out set:")
     y_pred = model.predict(X_test)
     print(classification_report(y_test, y_pred))
-    out_path = Path("api/ml/rf_cicids2018.joblib")
+
+    api_dir = Path(__file__).resolve().parents[1]
+    out_path = api_dir / "ml" / "rf_cicids2018.joblib"
     joblib.dump(
         {
             "model": model,
