@@ -46,8 +46,11 @@ class Assignment(BaseModel):
     id: str
     stages: list[Stage]
     
-    def new(id: str = str(uuid4()), stages: list[Stage] = []):
-        return Assignment(id=id, stages=stages)
+    def new(new_id: str | None = None, stages: list[Stage] = []):
+        if new_id is None:
+            new_id = str(uuid4())
+        
+        return Assignment(id=new_id, stages=stages)
     
 class UploadResponse(BaseModel):
     filename: str
