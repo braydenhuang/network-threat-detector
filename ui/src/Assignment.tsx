@@ -42,18 +42,18 @@ export default function Assignment(): JSX.Element {
 
     return (
         // Main container
-        <>
+        <div class="flex flex-col min-h-screen">
             { /* Header with dark blue color */}
             <div class="flex flex-row flex-wrap bg-sky-950 text-neutral-50 w-full pt-4 min-h-[60px] max-h-[100px]">
-                <h1 class="flex-none mx-4 p-4 text-3xl font-semibold">Network Threat Detector</h1>
+                <h1 class="flex-none ml-8 py-4 max-[380px]:text-sm max-[420px]:text-base max-[470px]:text-xl max-[570px]:text-2xl text-3xl font-semibold">Network Threat Detector</h1>
                 <Show when={valid}>
-                    <button class="hover:cursor-pointer hover:font-semibold rounded-4xl mx-4 ml-auto px-4 py-4 bg-gradient-to-r from-sky-600 to-indigo-600 text-lg text-white font-medium shadow-lg shadow-sky-900/40 hover:from-sky-500 hover:to-indigo-500" onClick={() => window.location.href = "/"}>Back to Home</button>
+                    <button class="hover:cursor-pointer hover:font-semibold rounded-4xl mx-4 ml-auto max-[470px]:p-2 px-4 py-4 bg-gradient-to-r from-sky-600 to-indigo-600 max-[470px]:text-sm text-lg text-white font-medium shadow-lg shadow-sky-900/40 hover:from-sky-500 hover:to-indigo-500" onClick={() => window.location.href = "/"}>Back to Home</button>
                 </Show>
             </div>
             { /* Content with blue color */}
-            <div class="flex bg-sky-950 text-neutral-50 w-full h-screen">
+            <div class="flex-1 flex bg-sky-950 text-neutral-50 w-full">
                 { /* Center box */}
-                <div class="flex flex-col m-auto">
+                <div class="flex flex-col m-auto max-[580px]:my-8">
 
                     <Show when={!valid || assignment.error}>
                         <div class="border rounded-2xl mx-auto border-neutral-50 border-opacity-50">
@@ -98,7 +98,7 @@ export default function Assignment(): JSX.Element {
                     </Show>
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 

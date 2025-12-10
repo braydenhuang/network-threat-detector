@@ -20,7 +20,7 @@ export default function App(): JSX.Element {
                 />
             </div>
             { /* Content with blue color */}
-            <div class="flex bg-sky-950 text-neutral-50 w-full h-screen">
+            <div class="flex bg-sky-950 text-neutral-50 w-full h-dvh">
                 { /* Center box */}
                 <div class="flex flex-col m-auto">
                     <div class="border-2 rounded-2xl mx-auto border-dashed border-neutral-50">
