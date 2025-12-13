@@ -8,6 +8,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 import joblib
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+
+import matplotlib.pyplot as plt
+
 DATA_DIR = Path("E:")
 PATTERN = "*TrafficForML_CICFlowMeter.csv"
 TARGET_COL = "Label"
@@ -106,20 +111,67 @@ def load_sampled_data():
     print(y.value_counts())
     return X, y, feature_cols
 
+def evaluate_model(name, model, X_train, X_test, y_train, y_test):
+    print(f"\n===== Training {name} =====")
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    print(f"\n===== {name} classification report =====")
+    print(classification_report(y_test,y_pred))
+    return model
+
+def save_rf_feature_importance_plot(rf_pipeline, feature_cols, out_png: Path, top_n=25):
+    rf = rf_pipeline.named_steps["randomforestclassifier"]
+    importances = rf.feature_importances_
+    if len(importances) != len(feature_cols):
+        raise ValueError("Feature importance length mismatch with feature columns")
+    
+    #top N
+    idx = np.argsort(importances)[::-1][:top_n]
+    top_features = [feature_cols[i] for i in idx]
+    top_importances = importances[idx]
+
+    plt.figure(figsize=(10,8))
+    plt.barh(range(len(top_features)), top_importances)
+    plt.yticks(range(len(top_features)), top_features)
+    plt.gca().invert_yaxis()
+    plt.xlabel("Feature Importance (Gini)")
+    plt.title(f"Random Forest Top-{top_n} Feature importances")
+    plt.tight_layout()
+
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_png,dpi=200)
+    plt.close()
+    print(f"saved feature importance plt to: {out_png.resolve()}")
+
+
 def main():
     X,y, feature_cols = load_sampled_data()
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
     #pipeline to scale numeric features 
+    #---------------RF-----------------
     model = make_pipeline(
         StandardScaler(),
-        RandomForestClassifier(n_estimators=300, max_depth=None, min_samples_split=2, min_samples_leaf=1, max_features="sqrt", n_jobs=-1, class_weight="balanced_subsample", random_state=42)
+        RandomForestClassifier(
+            n_estimators=300, 
+            max_depth=None, 
+            min_samples_split=2, 
+            min_samples_leaf=1, 
+            max_features="sqrt", 
+            n_jobs=-1, 
+            class_weight="balanced_subsample", 
+            random_state=42
+            )
     )
 
+    rf_model = evaluate_model("Random Forest", model, X_train, X_test, y_train, y_test)
+
+    '''
     print("\nTraining Random Forest Classifier...")
     model.fit(X_train, y_train)
     print("\nEvaluation on hold-out set:")
     y_pred = model.predict(X_test)
     print(classification_report(y_test, y_pred))
+    '''
 
     api_dir = Path(__file__).resolve().parents[1]
     out_path = api_dir / "ml" / "rf_cicids2018.joblib"
@@ -132,6 +184,36 @@ def main():
         out_path,
     )
     print(f"\nSaved model to {out_path.resolve()}")
+
+    #RF feature importance plot
+    out_png = api_dir/"ml"/"rf_feature_importance_top25.png"
+    save_rf_feature_importance_plot(rf_model, feature_cols, out_png, top_n=25)
+
+    #-------------------- Logistic Regression --------------------------
+    lr_model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(
+            max_iter=2000,
+            solver="saga",
+            n_jobs=-1,
+            class_weight="balanced"
+        )
+    )
+
+    _=evaluate_model("Logistic Regression", lr_model, X_train, X_test,y_train,y_test)
+
+    #---------------------- SVM---------------------------------
+    svm_rbf_model = make_pipeline(
+        StandardScaler(),
+        SVC(
+            kernel="rbf",
+            C=1.0,
+            gamma="scale",
+            class_weight="balanced"
+        )
+    )
+
+    _=evaluate_model("SVM RBF", svm_rbf_model, X_train,X_test,y_train,y_test)
 
 
 if __name__ == "__main__":
